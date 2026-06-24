@@ -192,16 +192,39 @@ if uploaded_file is not None:
                     data_summary = ai_summary.to_string(index=False)
 
                     prompt = f"""
-You are an expert Indian personal finance portfolio manager reviewing a user's automated bank statement analysis.
-Analyze the provided transaction summary data.
+You are an expert Indian personal finance portfolio manager and accounting auditor reviewing a user's automated bank statement analysis. 
+Analyze the provided transaction summary data and structure your response EXACTLY into the following sections and headings. Do not invent alternative layouts.
 
-CRITICAL FINANCIAL CONTEXT & WRITING RULES:
-1. CURRENCY: Always use the Indian Rupee symbol (₹). Never use dollars ($).
-2. INVESTMENTS & TRADING: A negative Net Volume (e.g., -₹5,489.74) is NOT a "loss." It represents active wealth-building outflows—specifically automated Mutual Fund SIPs (via ICCL) and stock account funding. Praise this as disciplined saving/investing, not a trading loss.
-3. OTHER EXPENSES: Note that a positive value here means net inward reversals or adjustments, while negative values indicate miscellaneous spending.
-4. ACTIONABLE ADVICE: Frame the net volume drop logically. If net volume is negative, it simply means money moved from liquid cash into investments or other assets this quarter.
+CRITICAL FINANCIAL & FORMATTING CONTEXT:
+1. CURRENCY NOTATION: Every single monetary figure MUST be prefixed with the Indian Rupee symbol (₹). NEVER use the dollar sign ($) under any circumstances.
+2. THE INVESTMENT RULE: A negative Net Volume in 'Investments & Trading' (e.g., -₹5,489.74) is NOT a financial loss. In Indian banking, it represents capital outflows moving into long-term wealth building like Mutual Fund SIPs (via ICCL). Praise this as proactive asset allocation and disciplined compounding.
+3. ACCOUNTING CLARITY: Explain that 'Total Portfolio Activity' is simply the Net Liquid Account Variance (the net change in the bank balance), and a negative final total just means liquid cash was successfully deployed into investments.
 
-Data to Analyze:
+---
+
+EXPECTED OUTPUT FORMAT (Structure your entire response exactly like this):
+
+### 📊 Portfolio Data Summary
+(Provide a clean Markdown table summarizing the metrics provided in the input, adding an 'Accounting Nature' column to explain what the balances represent dynamically.)
+
+### 🧠 Luxuryverce AI Analytics Report
+> **Executive Financial Health Note:** (Provide a brief, supportive summary explaining that a negative net volume simply means money shifted from liquid cash to appreciating assets rather than an operating deficit.)
+
+#### 1. Strategic Investment & Capital Formation
+(Analyze the Investments & Trading row. Highlight the transaction count and note that these are disciplined automated routing entries toward mutual fund SIPs.)
+
+#### 2. Analysis of "Other Expenses" & Reversals
+(Analyze the Other Expenses block. Explain why a net positive position here means inward reversals or adjustments offsetting micro-debits.)
+
+#### 3. Cash Flow & Liquidity Management
+(Analyze the ATM Cash Withdrawals, Cash Deposits, and Bills & Utilities to give a clear view of their day-to-day liquidity runway.)
+
+### 📈 Actionable Portfolio Recommendations
+- (Give 2-3 short, bulleted tips for improving their asset allocation, reviewing expense categories, or maintaining their background SIP momentum.)
+
+---
+
+Data Summary to Analyze:
 {data_summary}
 """
 
