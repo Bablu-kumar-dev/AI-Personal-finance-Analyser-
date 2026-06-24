@@ -1,4 +1,4 @@
-# 📈 Luxuryverce AI Big-Data Finance Engine
+# 📈  AI Personal Finance Analyzer
 
 An intelligent, production-grade automated personal finance dashboard that processes large-scale banking statements locally via Pandas vectorized analytics and generates executive strategic summaries using the `gpt-4o-mini` LLM engine.
 
@@ -27,10 +27,3 @@ An intelligent, production-grade automated personal finance dashboard that proce
 - **AI Core Pipeline:** OpenAI API Wrapper (`gpt-4o-mini` via production endpoint model grids)
 
 ---
-
-## ⚙️ Installation & Workspace Setup
-
-### 1. Clone the Workspace
-```bash
-git clone [https://github.com/Bablu-star-coder/AI-Personal-finance-Analyser-.git](https://github.com/Bablu-star-coder/AI-Personal-finance-Analyser-.git)
-cd AI-Personal-finance-Analyser-

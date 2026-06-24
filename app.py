@@ -188,21 +188,23 @@ if uploaded_file is not None:
                     ai_summary = df_clean_dates.groupby('Category').agg(
                         Transaction_Count=('Net_Amount', 'count'),
                         Total_Net_Volume=('Net_Amount', 'sum')
-                    ).reset_index().to_string(index=False)
+                    ).reset_index()
+                    data_summary = ai_summary.to_string(index=False)
 
                     prompt = f"""
-You are an expert Indian financial analytics assistant.
-Analyze the following summarized banking transaction dataset.
+You are an expert Indian personal finance portfolio manager reviewing a user's automated bank statement analysis.
+Analyze the provided transaction summary data.
 
-CRITICAL INSTRUCTIONS FOR CURRENCY FORMATTING:
-- NEVER use the dollar sign ($) anywhere in your analysis.
-- Keep the exact raw numeric values from the data but swap the symbol. For example, if you calculate 4,200, display it strictly as \u20b94,200 (DO NOT convert \u20b94,200 into $50 USD).
-- Every single monetary transaction value, budget cap, or total breakdown figure MUST be prefixed with the Indian Rupee symbol (\u20b9).
+CRITICAL FINANCIAL CONTEXT & WRITING RULES:
+1. CURRENCY: Always use the Indian Rupee symbol (₹). Never use dollars ($).
+2. INVESTMENTS & TRADING: A negative Net Volume (e.g., -₹5,489.74) is NOT a "loss." It represents active wealth-building outflows—specifically automated Mutual Fund SIPs (via ICCL) and stock account funding. Praise this as disciplined saving/investing, not a trading loss.
+3. OTHER EXPENSES: Note that a positive value here means net inward reversals or adjustments, while negative values indicate miscellaneous spending.
+4. ACTIONABLE ADVICE: Frame the net volume drop logically. If net volume is negative, it simply means money moved from liquid cash into investments or other assets this quarter.
 
-Data Summary:
-{ai_summary}
+Data to Analyze:
+{data_summary}
 """
-                    
+
                     response = client.chat.completions.create(
                         messages=[
                             {"role": "system", "content": "You are a strategic corporate financial advisor."},
