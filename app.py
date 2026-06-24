@@ -50,7 +50,7 @@ def local_categorize(desc):
     cleaned_desc = str(desc).replace("Miscellaneous", "").strip().upper()
     
     # 1. ATM Failed Transactions & Reversals (ICCW FA)
-    if "ICCW FA" in cleaned_desc or "FAILED TRANCATION" in cleaned_desc or "REFUND" in cleaned_desc:
+    if "ICCW FA" in cleaned_desc or "FAILED TRANSACTION" in cleaned_desc or "REFUND" in cleaned_desc:
         return "ATM Reversals & Refunds"
 
     # 2. Mutual Fund SIPs via ICCL (Indian Clearing Corporation Ltd)
