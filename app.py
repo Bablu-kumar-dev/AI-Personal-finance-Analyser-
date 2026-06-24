@@ -62,7 +62,7 @@ def local_categorize(desc):
     elif any(keyword in cleaned_desc for keyword in ["BY CASH", "CARDLESS DEPOSIT", "CASH DEPOSITS"]):
         return "Cash Deposits"
         
-    # 5. Fuel & Fuel Stations (Indian Oil / ICC)
+    # 5. sip & ATM refunds (Indian Oil / ICC)
     elif any(keyword in cleaned_desc for keyword in ["INDIAN O", "ICCW", "ICCLDHR"]):
         return "Fuel & Commute"
         
