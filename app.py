@@ -40,16 +40,17 @@ def clean_currency_string(val):
         return -amount if is_negative else amount
     except ValueError:
         return 0.0
-
-# Rule-based local pre-categorizer to process large rows instantly without hitting AI limits
-def local_categorize(desc):
-    """
+        
    # Rule-based local pre-categorizer to process large rows instantly without hitting AI limits
 def local_categorize(desc):
     """
     Rule-based local pre-categorizer with explicit handling for ICCL Mutual Fund SIPs and ICCW ATM Failed Transaction Refunds.
     """
-    cleaned_desc = str(desc).replace("Miscellaneous", "").strip().upper()
+    # Bulletproof text cleaning to remove copy-paste artifacts
+    cleaned_desc = str(desc).upper()
+    for artifact in ["MISCELLANEOUS", "THISUPIAB/", "THISUPIAR/", "ADD THIS IN TRANSPORT & COMMUTE"]:
+        cleaned_desc = cleaned_desc.replace(artifact, "")
+    cleaned_desc = cleaned_desc.strip()
     
     # 1. ATM Failed Transactions & Reversals (ICCW FA)
     if "ICCW FA" in cleaned_desc or "FAILED TRANSACTION" in cleaned_desc or "REFUND" in cleaned_desc:
