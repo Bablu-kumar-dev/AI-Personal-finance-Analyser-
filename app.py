@@ -52,9 +52,9 @@ def local_categorize(desc):
         cleaned_desc = cleaned_desc.replace(artifact, "")
     cleaned_desc = cleaned_desc.strip()
     
-    # 1. ATM Failed Transactions & Reversals (ICCW FA)
-    if "ICCW FA" in cleaned_desc or "FAILED TRANSACTION" in cleaned_desc or "REFUND" in cleaned_desc:
-        return "ATM Reversals & Refunds"
+    # 1.Transport & Commute
+    if "BMTC BUS" in cleaned_desc or any(keyword in cleaned_desc for keyword in ["UBER", "OLA", "RAPIDO", "METRO", "TRAIN"]):
+        return "Transport & Commute"
         
     # 2. Mutual Fund SIPs via ICCL (Indian Clearing Corporation Ltd)
     elif "ICCLDHR" in cleaned_desc or "INDIAN CLEARING CORP" in cleaned_desc:
@@ -84,9 +84,9 @@ def local_categorize(desc):
     elif "INT.PD" in cleaned_desc or "INT CARD" in cleaned_desc:
         return "Bank Interest Income"
 
-    # 9. Transport & Commute
-    if "BMTC BUS" in cleaned_desc or any(keyword in cleaned_desc for keyword in ["UBER", "OLA", "RAPIDO", "METRO", "TRAIN"]):
-        return "Transport & Commute"
+    # 9. ATM Failed Transactions & Reversals (ICCW FA)
+    if "ICCW FA" in cleaned_desc or "FAILED TRANSACTION" in cleaned_desc or "REFUND" in cleaned_desc:
+        return "ATM Reversals & Refunds"
         
     return "Other Expenses"
 
