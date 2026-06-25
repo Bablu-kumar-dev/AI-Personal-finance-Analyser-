@@ -85,7 +85,7 @@ def local_categorize(desc):
         return "Bank Interest Income"
 
     # 9. Transport & Commute
-    elif any(keyword in cleaned_desc for keyword in ["UBER", "OLA", "RAPIDO", "METRO", "TRAIN", "BMTC BUS"]):
+    if "BMTC BUS" in cleaned_desc or any(keyword in cleaned_desc for keyword in ["UBER", "OLA", "RAPIDO", "METRO", "TRAIN"]):
         return "Transport & Commute"
         
     return "Other Expenses"
