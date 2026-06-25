@@ -195,6 +195,15 @@ if uploaded_file is not None:
         # Handle Timestamps
         df['Parsed_Date'] = pd.to_datetime(df[date_col], format='%d-%m-%Y', errors='coerce')
         df_clean_dates = df.dropna(subset=['Parsed_Date']).sort_values('Parsed_Date')
+        # Force Pandas to look for the Day first, preventing April/May from turning into November/October
+        df_clean_dates['Date'] = pd.to_datetime(
+            df_clean_dates['Date'], 
+            dayfirst=True, 
+            errors='coerce'
+        )
+
+# Optional: If your strings are tightly mashed, use a strict format matching layout:
+# processed_df['Date'] = pd.to_datetime(processed_df['Date'], format='%d-%m-%Y', errors='coerce')
 
         # 4. FAST LOCAL CATEGORIZATION ENGINE
         df_clean_dates['Category'] = df_clean_dates[desc_col].apply(local_categorize)
