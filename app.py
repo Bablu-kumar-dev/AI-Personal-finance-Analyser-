@@ -75,7 +75,7 @@ def local_categorize(desc):
         
     # 7. Peer-to-Peer Transfers
     elif any(keyword in cleaned_desc for keyword in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K" ,"Mr
-RAMES","Asmit ku"]):
+"RAMES","Asmit ku"]):
         return "Peer Transfers"
         
     # 8. Fixed Account Interest Credits
