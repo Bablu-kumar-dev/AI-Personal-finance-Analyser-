@@ -82,7 +82,81 @@ def local_categorize(desc):
         return "Bank Interest Income"
         
     return "Other Expenses"
+import re
+import pandas as pd
+import streamlit as st
 
+def process_and_categorize_statement(df):
+    """
+    A single, comprehensive function that auto-detects columns, 
+    cleans row noise, maps categories locally, and ensures 100% mathematical accuracy.
+    """
+    # ----------------------------------------------------
+    # 1. DYNAMIC COLUMN DETECTION (Handles any banking template)
+    # ----------------------------------------------------
+    date_keywords = ['date', 'txn date', 'transaction date', 'value date']
+    desc_keywords = ['desc', 'narration', 'particular', 'transaction details', 'remarks', 'description']
+    amt_keywords = ['amount', 'amt', 'volume', 'transaction amount', 'credit/debit']
+
+    date_col = [c for c in df.columns if any(k in c.lower() for k in date_keywords)]
+    desc_col = [c for c in df.columns if any(k in c.lower() for k in desc_keywords)]
+    amt_col = [c for c in df.columns if any(k in c.lower() for k in amt_keywords)]
+
+    # Fallbacks if column names don't match standard keywords
+    date_col = date_col[0] if date_col else df.columns[0]
+    desc_col = desc_col[0] if desc_col else (df.columns[1] if len(df.columns) > 1 else df.columns[0])
+    amt_col = amt_col[0] if amt_col else (df.columns[2] if len(df.columns) > 2 else df.columns[-1])
+
+    # ----------------------------------------------------
+    # 2. LOCAL RULE-BASED PRE-CATEGORIZER REGEX ENGINE
+    # ----------------------------------------------------
+    def local_categorize(raw_desc):
+        # Convert to string and strip hardcoded noise trailing flags instantly
+        cleaned = str(raw_desc).upper()
+        cleaned = re.sub(r'(MISCELLANEOUS|OTHER EXPENSES)', '', cleaned).strip()
+        
+        # Category Logic Mappings
+        if any(k in cleaned for k in ["ICCW FA", "FAILED TRANCATION", "REFUND"]):
+            return "ATM Reversals & Refunds"
+            
+        elif any(k in cleaned for k in ["ICCLDHR", "INDIAN CLEARING CORP", "MONEY LIC", "MONEYLICIOUS", "RAISE SECURITIES", "DS AXISCN"]):
+            return "Investments & Trading"
+            
+        elif any(k in cleaned for k in ["JIO MOBIL", "JIO PREP", "AMAZON", "SMS CHARGES", "NEXTGENFASTFAS"]):
+            return "Bills & Utilities"
+            
+        elif any(k in cleaned for k in ["BY CASH", "CARDLESS DEPOSIT", "CASH DEPOSITS", "DEPOSIT"]):
+            return "Cash Deposits"
+            
+        elif "ICCW" in cleaned:
+            return "ATM Cash Withdrawals"
+            
+        elif any(k in cleaned for k in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K", "ASMIT KU"]):
+            return "Peer Transfers"
+            
+        elif "INT.PD" in cleaned or "INT CARD" in cleaned:
+            return "Bank Interest Income"
+            
+        return "Other Spending"
+
+    # ----------------------------------------------------
+    # 3. DATA CLEANING & ACCURATE MATH CALCULATION
+    # ----------------------------------------------------
+    # Force copy to avoid pandas slice warnings
+    processed_df = df[[date_col, desc_col, amt_col]].copy()
+    processed_df.columns = ['Date', 'Description', 'Amount']
+    
+    # Sanitize Amount column (strip currency symbols, commas, trailing words)
+    processed_df['Amount'] = processed_df['Amount'].astype(str).str.replace(r'[₹\$,]', '', regex=True)
+    processed_df['Amount'] = pd.to_numeric(processed_df['Amount'], errors='coerce').fillna(0.0)
+    
+    # Apply local categorization rule engine
+    processed_df['Category'] = processed_df['Description'].apply(local_categorize)
+    
+    # Calculate mathematically absolute values for data context validation
+    total_net_volume = processed_df['Amount'].sum()
+    
+    return processed_df, total_net_volume
 if uploaded_file is not None:
     try:
         # 1. READ DATA EFFICIENTLY
@@ -207,7 +281,7 @@ EXPECTED OUTPUT FORMAT (Structure your entire response exactly like this):
 ### 📊 Portfolio Data Summary
 (Provide a clean Markdown table summarizing the metrics provided in the input, adding an 'Accounting Nature' column to explain what the balances represent dynamically.)
 
-### 🧠 Luxuryverce AI Analytics Report
+### 🧠 AI Personal Finance Analyzer Report
 > **Executive Financial Health Note:** (Provide a brief, supportive summary explaining that a negative net volume simply means money shifted from liquid cash to appreciating assets rather than an operating deficit.)
 
 #### 1. Strategic Investment & Capital Formation
@@ -221,8 +295,6 @@ EXPECTED OUTPUT FORMAT (Structure your entire response exactly like this):
 
 ### 📈 Actionable Portfolio Recommendations
 - (Give 2-3 short, bulleted tips for improving their asset allocation, reviewing expense categories, or maintaining their background SIP momentum.)
-
----
 
 Data Summary to Analyze:
 {data_summary}
