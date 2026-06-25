@@ -74,8 +74,7 @@ def local_categorize(desc):
         return "ATM Cash Withdrawals"
         
     # 7. Peer-to-Peer Transfers
-    elif any(keyword in cleaned_desc for keyword in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K" ,"Mr
-"RAMES","Asmit ku"]):
+    elif any(keyword in cleaned_desc for keyword in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K" ,"Mr RAMES","Asmit ku"]):
         return "Peer Transfers"
         
     # 8. Fixed Account Interest Credits
