@@ -44,15 +44,17 @@ def clean_currency_string(val):
 # Rule-based local pre-categorizer to process large rows instantly without hitting AI limits
 def local_categorize(desc):
     """
-    Rule-based local pre-categorizer with explicit handling for 
-    ICCL Mutual Fund SIPs and ICCW ATM Failed Transaction Refunds.
+   # Rule-based local pre-categorizer to process large rows instantly without hitting AI limits
+def local_categorize(desc):
+    """
+    Rule-based local pre-categorizer with explicit handling for ICCL Mutual Fund SIPs and ICCW ATM Failed Transaction Refunds.
     """
     cleaned_desc = str(desc).replace("Miscellaneous", "").strip().upper()
     
     # 1. ATM Failed Transactions & Reversals (ICCW FA)
     if "ICCW FA" in cleaned_desc or "FAILED TRANSACTION" in cleaned_desc or "REFUND" in cleaned_desc:
         return "ATM Reversals & Refunds"
-
+        
     # 2. Mutual Fund SIPs via ICCL (Indian Clearing Corporation Ltd)
     elif "ICCLDHR" in cleaned_desc or "INDIAN CLEARING CORP" in cleaned_desc:
         return "Investments & Trading"
@@ -61,8 +63,8 @@ def local_categorize(desc):
     elif any(keyword in cleaned_desc for keyword in ["MONEY LIC", "MONEYLICIOUS", "RAISE SECURITIES", "DS AXISCN", "RAISE SE", "RAISE.RZP1"]):
         return "Investments & Trading"
         
-    # 4. Mobile Recharges & Utilities
-    elif any(keyword in cleaned_desc for keyword in ["JIO MOBIL", "JIO PREP", "AMAZON", "SMS CHARGES", "NEXTGENFASTFAS" , "paytm-jiomobil" , "Flipkart"]):
+    # 4. Mobile Recharges & Utilities (FIXED TO UPPERCASE)
+    elif any(keyword in cleaned_desc for keyword in ["JIO MOBIL", "JIO PREP", "AMAZON", "SMS CHARGES", "NEXTGENFASTFAS", "PAYTM-JIOMOBIL", "FLIPKART"]):
         return "Bills & Utilities"
         
     # 5. Cash Transactions & Physical Deposits
@@ -74,13 +76,14 @@ def local_categorize(desc):
         return "ATM Cash Withdrawals"
         
     # 7. Peer-to-Peer Transfers
-    elif any(keyword in cleaned_desc for keyword in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K" ,"MR RAMES","ASMIT KU", "SUMAN KU","RUDRA PR", "RANJIT K"]):
+    elif any(keyword in cleaned_desc for keyword in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K", "MR RAMES", "ASMIT KU", "SUMAN KU", "RUDRA PR", "RANJIT K"]):
         return "Peer Transfers"
         
     # 8. Fixed Account Interest Credits
     elif "INT.PD" in cleaned_desc or "INT CARD" in cleaned_desc:
         return "Bank Interest Income"
-     # 9. Transport & Commute
+
+    # 9. Transport & Commute
     elif any(keyword in cleaned_desc for keyword in ["UBER", "OLA", "RAPIDO", "METRO", "TRAIN", "BMTC BUS"]):
         return "Transport & Commute"
         
