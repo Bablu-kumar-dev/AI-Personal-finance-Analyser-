@@ -100,18 +100,29 @@ if uploaded_file is not None:
     total_expenses = clean_df[clean_df['Amount'] < 0]['Amount'].sum()
 
     # ==========================================
-    # 4. KPI VALUE LAYOUT DISPLAY (REFACTORED FOR SYNC)
+    # 4. REFACTORED KPI CALCULATIONS (SPLITTING OUT SIPs)
     # ==========================================
-    st.success(f"Successfully optimized and indexed {len(clean_df)} financial transaction rows!")
-    
-    # Calculate real-time totals directly from the cleaned, signed amounts
+    # 1. Total Inflows (Interest, Deposits, etc.)
     total_income = clean_df[clean_df['Amount'] > 0]['Amount'].sum()
-    total_expenses = clean_df[clean_df['Amount'] < 0]['Amount'].sum()
-    net_variance = clean_df['Amount'].sum() # This will exactly equal -6,172.64
+    
+    # 2. Wealth Accumulation (Only Investments & SIPs)
+    total_invested = clean_df[clean_df['Category'] == 'Investments & Trading']['Amount'].sum()
+    
+    # 3. True Operational Expenses (Everything else that is negative)
+    total_expenses = clean_df[
+        (clean_df['Amount'] < 0) & 
+        (clean_df['Category'] != 'Investments & Trading')
+    ]['Amount'].sum()
+    
+    # 4. Ultimate Liquid Variance (-6,172.64)
+    net_variance = clean_df['Amount'].sum()
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Income Tracked", f"₹{total_income:,.2f}")
-    col2.metric("Total Overall Expenses", f"₹{abs(total_expenses):,.2f}")
+    # --- UI Layout Render ---
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("📥 Total Income Tracked", f"₹{total_income:,.2f}")
+    col2.metric("💸 Core Expenses (Outlays)", f"₹{abs(total_expenses):,.2f}")
+    col3.metric("📈 Asset Building (SIPs)", f"₹{abs(total_invested):,.2f}")
+    col4.metric("⚖️ Net Cashflow Change", f"₹{net_variance:,.2f}")
     
     # Replace your old 'Final Statement Balance' line with this clean cashflow tracker:
     col3.metric("Net Cashflow Variance", f"₹{net_variance:,.2f}", delta=f"{net_variance:,.2f}")
