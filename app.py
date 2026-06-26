@@ -59,21 +59,21 @@ def process_and_categorize_statement(df):
         # Instantly clear structural string noise from layout builders
         cleaned = re.sub(r'(MISCELLANEOUS|OTHER EXPENSES)', '', cleaned).strip()
         
-        if any(k in cleaned for k in ["ICCW FA", "FAILED TRANCATION", "REFUND"]):
+        if any(k in cleaned for k in ["ICCW FA", "FAILED TRANSACTION", "REFUND"]):
             return "ATM Reversals & Refunds"
         elif any(k in cleaned for k in ["ICCLDHR", "INDIAN CLEARING CORP", "MONEY LIC", "MONEYLICIOUS", "RAISE SECURITIES", "DS AXISCN"]):
             return "Investments & Trading"
-        elif any(k in cleaned for k in ["JIO MOBIL", "JIO PREP", "AMAZON", "SMS CHARGES", "NEXTGENFASTFAS"]):
+        elif any(k in cleaned for k in ["JIO MOBIL", "JIO PREP", "AMAZON", "SMS CHARGES", "NEXTGENFASTFAS","paytm-jiomobil","Flipkart"]):
             return "Bills & Utilities"
         elif any(k in cleaned for k in ["BY CASH", "CARDLESS DEPOSIT", "CASH DEPOSITS", "DEPOSIT"]):
             return "Cash Deposits"
         elif "ICCW" in cleaned:
             return "ATM Cash Withdrawals"
-        elif any(k in cleaned for k in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K", "ASMIT KU"]):
+        elif any(k in cleaned for k in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K", "ASMIT KU", "SUMAN KR", "MR.RAMES", "RUDRA PR", "RANJIT K"]):
             return "Peer Transfers"
         elif "INT.PD" in cleaned or "INT CARD" in cleaned:
             return "Bank Interest Income"
-        elif "BMTC BUS" in cleaned or any(keyword in cleaned for keyword in ["UBER", "OLA", "RAPIDO", "METRO", "TRAIN"]):
+        if "BMTC BUS" in cleaned or any(keyword in cleaned for keyword in ["UBER", "OLA", "RAPIDO", "METRO", "TRAIN"]):
             return "Transport & Commute"
         return "Other Spending"
 
@@ -99,14 +99,23 @@ if uploaded_file is not None:
     total_income = clean_df[clean_df['Amount'] > 0]['Amount'].sum()
     total_expenses = clean_df[clean_df['Amount'] < 0]['Amount'].sum()
 
-    # 4. KPI VALUE LAYOUT DISPLAY
+    # ==========================================
+    # 4. KPI VALUE LAYOUT DISPLAY (REFACTORED FOR SYNC)
+    # ==========================================
     st.success(f"Successfully optimized and indexed {len(clean_df)} financial transaction rows!")
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Income Tracked (Inflows)", f"₹{total_income:,.2f}")
-    col2.metric("Total Expenses (Outflows)", f"₹{abs(total_expenses):,.2f}")
-    col3.metric("Net Liquid Account Balance Variance", f"₹{continuous_calculated_total:,.2f}")
+    # Calculate real-time totals directly from the cleaned, signed amounts
+    total_income = clean_df[clean_df['Amount'] > 0]['Amount'].sum()
+    total_expenses = clean_df[clean_df['Amount'] < 0]['Amount'].sum()
+    net_variance = clean_df['Amount'].sum() # This will exactly equal -6,172.64
 
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Income Tracked", f"₹{total_income:,.2f}")
+    col2.metric("Total Overall Expenses", f"₹{abs(total_expenses):,.2f}")
+    
+    # Replace your old 'Final Statement Balance' line with this clean cashflow tracker:
+    col3.metric("Net Cashflow Variance", f"₹{net_variance:,.2f}", delta=f"{net_variance:,.2f}")
+    
     # 5. DATA EXPLORER GRAPHICS
     st.subheader("📊 Expense Distribution by Volume")
     chart_data = clean_df.groupby('Category')['Amount'].sum().reset_index()
@@ -127,7 +136,7 @@ if uploaded_file is not None:
 
     CRITICAL SYSTEM LAWS:
     1. CURRENCY: Prefix every single monetary balance with the Indian Rupee symbol (₹). Never use dollars ($).
-    2. THE INVESTMENT LAW: Outflows under 'Investments & Trading' (negative sum balances) indicate wealth asset formation like Mutual Fund SIPs via ICCL. Do not describe this as a loss—praise it as disciplined capital compounding.
+    2. THE INVESTMENT LAW: Outflows under 'Investments & Trading' (negative sum balances) indicate wealth asset formation like Mutual Fund SIPs via ICCL AND RAISE SECURITIES. Do not describe this as a loss—praise it as disciplined capital compounding.
     3. MATHEMATICAL ACCURACY: The precise absolute net change calculated by the ledger engine is strictly ₹{continuous_calculated_total:,.2f}. Frame all text paragraphs completely around this reality.
 
     ---
@@ -136,7 +145,7 @@ if uploaded_file is not None:
     ### 📊 Portfolio Data Summary
     (Provide a clean markdown table breaking down category distributions)
 
-    ### 🧠 Luxuryverce AI Analytics Report
+    ### 🧠  AI finance Analytics Report
     > **Executive Financial Health Note:** (Summary of balance changes)
 
     #### 1. Strategic Investment & Capital Formation
