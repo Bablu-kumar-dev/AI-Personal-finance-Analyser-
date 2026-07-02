@@ -136,8 +136,8 @@ with st.form("financial_plan_form"):
 
 if submitted:
     plan_df = build_financial_plan(monthly_income, savings_target, debt_payment)
-    st.dataframe(plan_df, use_container_width=True)
-    st.bar_chart(plan_df, x="Category", y="Planned Amount", use_container_width=True)
+    st.dataframe(plan_df, width='stretch')
+    st.bar_chart(plan_df, x="Category", y="Planned Amount", width='stretch')
 
 uploaded_file = st.file_uploader("Upload your transaction CSV/Excel Statement data", type=["csv", "xlsx"])
 
@@ -202,10 +202,10 @@ if uploaded_file is not None:
     chart_data = clean_df.groupby('Category')['Amount'].sum().reset_index()
     # Force visualization numbers positive for rendering clean bars
     chart_data['Absolute Volume'] = chart_data['Amount'].abs()
-    st.bar_chart(data=chart_data, x='Category', y='Absolute Volume', use_container_width=True)
+    st.bar_chart(data=chart_data, x='Category', y='Absolute Volume', width='stretch')
 
     st.subheader("🔍 Interactive Data Explorer")
-    st.dataframe(clean_df, use_container_width=True)
+    st.dataframe(clean_df, width='stretch')
 
     # 6. GENERATE SCRIPT SUMMARY PACK FOR THE LLM PROMPT
     summary_metrics = clean_df.groupby('Category')['Amount'].agg(['count', 'sum']).to_string()
