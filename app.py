@@ -77,11 +77,11 @@ def process_and_categorize_statement(df):
             return "Cash Deposits"
         elif "ICCW" in cleaned:
             return "ATM Cash Withdrawals"
-        elif any(k in cleaned for k in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K", "ASMIT KU", "SUMAN KR", "MR RAMES", "RUDRA PR", "RANJIT K"]):
+        elif any(k in cleaned for k in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K", "ASMIT KU", "SUMAN KR", "MR RAMES", "RUDRA PR", "RANJIT K", "Bada Papa"]):
             return "Peer Transfers"
         elif "INT PD" in cleaned or "INT CARD" in cleaned:
             return "Bank Interest Income"
-        if any(k in cleaned for k in ["BMTC BUS", "UBER", "OLA", "RAPIDO", "METRO", "TRAIN"]):
+        if any(k in cleaned for k in ["BMTC BUS", "UBER", "OLA", "RAPIDO", "METRO", "TRAIN", "Indian Oil Petrol Pump - Ashoka Auto Service"]):
             return "Transport & Commute"
         return "Other Spending"
 
