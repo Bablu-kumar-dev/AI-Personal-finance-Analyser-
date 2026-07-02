@@ -2,12 +2,22 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
+import os
 try:
     import openai
     OPENAI_AVAILABLE = True
 except Exception:
     openai = None
     OPENAI_AVAILABLE = False
+
+# OpenAI authentication support from environment or Streamlit secrets
+OPENAI_API_KEY = None
+if OPENAI_AVAILABLE:
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') or os.getenv('ADMIN_API_KEY')
+    if not OPENAI_API_KEY and hasattr(st, 'secrets'):
+        OPENAI_API_KEY = st.secrets.get('OPENAI_API_KEY') if 'OPENAI_API_KEY' in st.secrets else None
+    if OPENAI_API_KEY:
+        openai.api_key = OPENAI_API_KEY
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(page_title=" AI Finance Analyser", page_icon="📊", layout="wide")
@@ -247,6 +257,13 @@ if uploaded_file is not None:
     if st.button("Run AI Financial Diagnostics"):
         if not OPENAI_AVAILABLE:
             st.error("The `openai` Python package is not installed in this environment. Install it with `pip install openai` and restart the app.")
+        elif not OPENAI_API_KEY:
+            st.error(
+                "OpenAI API authentication is missing. Set `OPENAI_API_KEY` in your environment or Streamlit secrets, then restart the app."
+            )
+            st.info(
+                "If hosting on Streamlit Cloud, add the key under app settings > Secrets. If running locally, set environment variable OPENAI_API_KEY."
+            )
         else:
             st.write("### 🧠 AI Personal Finance Analyzer Running...")
             try:
