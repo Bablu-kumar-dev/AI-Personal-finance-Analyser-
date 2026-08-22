@@ -15,7 +15,10 @@ OPENAI_API_KEY = None
 if OPENAI_AVAILABLE:
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') or os.getenv('ADMIN_API_KEY')
     if not OPENAI_API_KEY and hasattr(st, 'secrets'):
-        OPENAI_API_KEY = st.secrets.get('OPENAI_API_KEY') if 'OPENAI_API_KEY' in st.secrets else None
+        try:
+            OPENAI_API_KEY = st.secrets.get('OPENAI_API_KEY')
+        except Exception:
+            OPENAI_API_KEY = None
     if OPENAI_API_KEY:
         openai.api_key = OPENAI_API_KEY
 
@@ -132,31 +135,30 @@ def build_financial_plan(monthly_income, savings_target, debt_payment=0.0):
     return plan_df
 
 # 3. STREAMLIT FILE UPLOADER & INTERFACE
-st.subheader("🧾 Financial Planning Assistant")
-with st.form("financial_plan_form"):
-    col_plan1, col_plan2, col_plan3 = st.columns(3)
-    with col_plan1:
-        monthly_income = st.number_input("Monthly income (₹)", min_value=0.0, step=1000.0, value=50000.0)
-    with col_plan2:
-        savings_target = st.number_input("Savings target (₹)", min_value=0.0, step=1000.0, value=10000.0)
-    with col_plan3:
-        debt_payment = st.number_input("Debt repayment (₹)", min_value=0.0, step=500.0, value=0.0)
-
-    submitted = st.form_submit_button("Generate Financial Plan")
-
-if submitted:
-    plan_df = build_financial_plan(monthly_income, savings_target, debt_payment)
-    st.dataframe(plan_df, width='stretch')
-    st.bar_chart(plan_df, x="Category", y="Planned Amount", width='stretch')
-
+    # 3. STREAMLIT FILE UPLOADER & INTERFACE (RESILIENT PARSER)
 uploaded_file = st.file_uploader("Upload your transaction CSV/Excel Statement data", type=["csv", "xlsx"])
 
 if uploaded_file is not None:
-    # Read layout formats safely
-    if uploaded_file.name.endswith('.csv'):
-        raw_df = pd.read_csv(uploaded_file)
-    else:
-        raw_df = pd.read_excel(uploaded_file)
+    try:
+        if uploaded_file.name.endswith('.csv'):
+            try:
+                # First attempt: Standard C-engine parser
+                raw_df = pd.read_csv(uploaded_file)
+            except Exception:
+                # Fallback 1: Python engine handling unescaped commas & variable line lengths
+                uploaded_file.seek(0)
+                try:
+                    raw_df = pd.read_csv(uploaded_file, on_bad_lines='skip', engine='python')
+                except Exception:
+                    # Fallback 2: Skip potential top metadata header lines common in bank PDFs/CSVs
+                    uploaded_file.seek(0)
+                    raw_df = pd.read_csv(uploaded_file, skiprows=4, on_bad_lines='skip', engine='python')
+        else:
+            raw_df = pd.read_excel(uploaded_file)
+            
+    except Exception as parse_err:
+        st.error(f"⚠️ Unable to parse this file structure: {parse_err}. Please ensure it is a valid CSV or Excel statement.")
+        st.stop()
 
     # Run processing engine
     clean_df, continuous_calculated_total = process_and_categorize_statement(raw_df)
