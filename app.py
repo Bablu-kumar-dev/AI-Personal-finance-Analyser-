@@ -133,31 +133,49 @@ def build_financial_plan(monthly_income, savings_target, debt_payment=0.0):
         plan_df["Share of Income (%)"] = 0.0
 
     return plan_df
+import io
 
-# 3. STREAMLIT FILE UPLOADER & INTERFACE
-    # 3. STREAMLIT FILE UPLOADER & INTERFACE (RESILIENT PARSER)
+# 3. STREAMLIT FILE UPLOADER & INTERFACE (ROBUST STRING CLEANER)
 uploaded_file = st.file_uploader("Upload your transaction CSV/Excel Statement data", type=["csv", "xlsx"])
 
 if uploaded_file is not None:
     try:
         if uploaded_file.name.endswith('.csv'):
+            # Read raw bytes and decode safely handling non-standard characters
+            bytes_data = uploaded_file.read()
+            
+            # Try decoding standard utf-8 or latin-1 encoding used by Indian bank servers
             try:
-                # First attempt: Standard C-engine parser
-                raw_df = pd.read_csv(uploaded_file)
+                decoded_text = bytes_data.decode('utf-8')
+            except UnicodeDecodeError:
+                decoded_text = bytes_data.decode('latin-1')
+
+            # Clean invisible non-breaking spaces and line-break artifacts
+            cleaned_text = decoded_text.replace('\xa0', ' ').replace('\r\n', '\n')
+            
+            # Read using StringIO text buffer
+            try:
+                raw_df = pd.read_csv(io.StringIO(cleaned_text), engine='python', on_bad_lines='skip')
             except Exception:
-                # Fallback 1: Python engine handling unescaped commas & variable line lengths
-                uploaded_file.seek(0)
-                try:
-                    raw_df = pd.read_csv(uploaded_file, on_bad_lines='skip', engine='python')
-                except Exception:
-                    # Fallback 2: Skip potential top metadata header lines common in bank PDFs/CSVs
-                    uploaded_file.seek(0)
-                    raw_df = pd.read_csv(uploaded_file, skiprows=4, on_bad_lines='skip', engine='python')
+                # If top bank header lines exist (e.g. Account No, Name), auto-detect header row
+                lines = cleaned_text.split('\n')
+                # Find line index where date or transaction keywords exist
+                header_idx = 0
+                for idx, line in enumerate(lines[:15]):
+                    if any(k in line.lower() for k in ['date', 'particulars', 'narration', 'amount', 'description']):
+                        header_idx = idx
+                        break
+                
+                raw_df = pd.read_csv(
+                    io.StringIO('\n'.join(lines[header_idx:])), 
+                    engine='python', 
+                    on_bad_lines='skip'
+                )
         else:
             raw_df = pd.read_excel(uploaded_file)
-            
+
     except Exception as parse_err:
-        st.error(f"⚠️ Unable to parse this file structure: {parse_err}. Please ensure it is a valid CSV or Excel statement.")
+        st.error(f"⚠️ Unable to parse statement layout: {parse_err}. Please ensure it is a valid CSV/XLSX file.")
         st.stop()
 
     # Run processing engine
