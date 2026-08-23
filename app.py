@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
+import os
+import io
+
 try:
     import openai
     OPENAI_AVAILABLE = True
@@ -22,7 +25,7 @@ if OPENAI_AVAILABLE:
         openai.api_key = OPENAI_API_KEY
 
 # 1. PAGE CONFIGURATION
-st.set_page_config(page_title="Luxuryverce AI Finance Analyser", page_icon="📊", layout="wide")
+st.set_page_config(page_title=" AI Finance Analyser", page_icon="📊", layout="wide")
 
 st.title("🧠 AI Personal Finance Analyser")
 st.caption("Track your automated 2026 SIP portfolios, ledger entries, and liquid balances instantly.")
@@ -50,9 +53,7 @@ def process_and_categorize_statement(df):
     processed_df.columns = ['Date', 'Description', 'Amount']
 
     # Strict Day-First Indian Date Conversion (DD-MM-YYYY)
-    processed_df['Date'] = pd.to_datetime(
-        processed_df['Date'], format='mixed', dayfirst=True, errors='coerce'
-    )
+    processed_df['Date'] = pd.to_datetime(processed_df['Date'], dayfirst=True, errors='coerce')
     
     # Capture Debit vs Credit indicators before removing symbols
     processed_df['Amount_Str'] = processed_df['Amount'].astype(str)
@@ -83,9 +84,9 @@ def process_and_categorize_statement(df):
         elif any(k in cleaned for k in ["BY CASH", "CARDLESS DEPOSIT", "CASH DEPOSITS", "DEPOSIT"]):
             return "Cash Deposits"
         elif "ICCW" in cleaned:
-            return "ATM Cash Withdrawals"
+            return "peer Transfers"
         elif any(k in cleaned for k in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K", "ASMIT KU"]):
-            return "Peer Transfers"
+            return "Atm Withdrawals & Cashouts"
         elif "INT.PD" in cleaned or "INT CARD" in cleaned:
             return "Bank Interest Income"
         
@@ -96,7 +97,46 @@ def process_and_categorize_statement(df):
     
     return processed_df, total_net_volume
 
-# 3. STREAMLIT FILE UPLOADER & INTERFACE
+def create__budget(monthly_income):
+    monthly_income = float(monthly_income or 0.0)
+    budget = pd.DataFrame({
+        'Budget Area': ['Needs', 'Wants', 'Savings & Debt Repayment'],
+        'Rule': ['50%', '30%', '20%'],
+        'Percentage': [50, 30, 20],
+        'Monthly Amount': [
+            monthly_income * 0.50,
+            monthly_income * 0.30,
+            monthly_income * 0.20,
+        ],
+    })
+    budget['Monthly Amount'] = budget['Monthly Amount'].round(2)
+    return budget
+
+# 3. MONTHLY BUDGET CREATOR
+st.subheader("📅 Monthly Budget Creator")
+st.caption("Create a simple monthly plan using the 50/30/20 personal finance rule.")
+with st.form("monthly_budget_form"):
+    budget_income = st.number_input(
+        "Monthly take-home income (₹)",
+        min_value=0.0,
+        step=1000.0,
+        value=50000.0,
+    )
+    budget_submitted = st.form_submit_button("Create Monthly Budget")
+
+if budget_submitted:
+    monthly_budget = create_monthly_budget(budget_income)
+    budget_columns = st.columns(3)
+    for column, budget_row in zip(budget_columns, monthly_budget.itertuples(index=False)):
+        column.metric(budget_row[0], f"₹{budget_row[3]:,.2f}", budget_row[1])
+    st.dataframe(
+        monthly_budget[['Budget Area', 'Rule', 'Monthly Amount']],
+        hide_index=True,
+        width='stretch',
+    )
+    st.bar_chart(monthly_budget, x='Budget Area', y='Monthly Amount', width='stretch')
+
+# 4. STREAMLIT FILE UPLOADER & INTERFACE
 uploaded_file = st.file_uploader("Upload your transaction CSV/Excel Statement data", type=["csv", "xlsx"])
 
 if uploaded_file is not None:
@@ -185,18 +225,48 @@ if uploaded_file is not None:
     {summary_metrics}
     """
 
-    # 7. EXECUTING DEPLOYED AI REVIEW
-    if st.button("Run AI Financial Diagnostics"):
-        if not OPENAI_AVAILABLE:
-            st.error("The `openai` Python package is not installed in this environment. Install it with `pip install openai` and restart the app.")
-        else:
-            st.write("### 🧠 AI Personal Finance Analyzer Running...")
-            try:
-                # Connects directly to your configured dashboard setup
-                response = openai.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[{"role": "user", "content": ai_prompt}]
-                )
-                st.markdown(response.choices[0].message.content)
-            except Exception as e:
-                st.error(f"AI Diagnostics Connection Error: {e}")
+    tab1, tab2 = st.tabs(["🔍 Financial Diagnostics", "🎯 Dynamic Financial Planner"])
+
+    with tab1:
+        if st.button("Run AI Financial Diagnostics", key="diag_btn"):
+            if not OPENAI_AVAILABLE or not OPENAI_API_KEY:
+                st.error("⚠️ OpenAI API Key is missing. Please configure OPENAI_API_KEY in your environment or secrets.toml.")
+            else:
+                st.write("### 🧠 AI Personal Finance Analyzer Running...")
+                try:
+                    response = openai.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[{"role": "user", "content": ai_prompt}]
+                    )
+                    st.markdown(response.choices[0].message.content)
+                except Exception as e:
+                    st.error(f"AI Connection Error: {e}")
+
+    with tab2:
+        st.subheader("🚀 Automated Wealth Accumulation Blueprint")
+        planner_prompt = f"""
+        Develop a financial blueprint based on these metrics:
+        - Total Inward Income: ₹{total_income:,.2f}
+        - Operational Expenses: ₹{abs(total_expenses):,.2f}
+        - Existing SIP Commitments: ₹{abs(total_invested):,.2f}
+        - Net Cashflow Delta: ₹{net_variance:,.2f}
+
+        Provide a breakdown covering:
+        1. Emergency Buffer Target (6x operational costs: ₹{abs(total_expenses) * 6:,.2f})
+        2. Market Compounding Strategy for Indian Equity (Nifty 50, Flexi-caps)
+        3. 5-Year Wealth Projections at 12% CAGR
+        """
+
+        if st.button("Generate My Financial Plan", key="plan_btn"):
+            if not OPENAI_AVAILABLE or not OPENAI_API_KEY:
+                st.error("⚠️ OpenAI API Key is missing. Please configure OPENAI_API_KEY in your environment or secrets.toml.")
+            else:
+                st.write("### 📐 Constructing Wealth Blueprint...")
+                try:
+                    plan_response = openai.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[{"role": "user", "content": planner_prompt}]
+                    )
+                    st.markdown(plan_response.choices[0].message.content)
+                except Exception as e:
+                    st.error(f"Financial Planner Error: {e}")
