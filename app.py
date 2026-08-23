@@ -2,10 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
-from dotenv import load_dotenv
-
-load_dotenv()
-
 try:
     import openai
     OPENAI_AVAILABLE = True
@@ -13,8 +9,20 @@ except Exception:
     openai = None
     OPENAI_AVAILABLE = False
 
+# OpenAI authentication support from environment or Streamlit secrets
+OPENAI_API_KEY = None
+if OPENAI_AVAILABLE:
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') or os.getenv('ADMIN_API_KEY')
+    if not OPENAI_API_KEY and hasattr(st, 'secrets'):
+        try:
+            OPENAI_API_KEY = st.secrets.get('OPENAI_API_KEY')
+        except Exception:
+            OPENAI_API_KEY = None
+    if OPENAI_API_KEY:
+        openai.api_key = OPENAI_API_KEY
+
 # 1. PAGE CONFIGURATION
-st.set_page_config(page_title=" AI Finance Analyser", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Luxuryverce AI Finance Analyser", page_icon="📊", layout="wide")
 
 st.title("🧠 AI Personal Finance Analyser")
 st.caption("Track your automated 2026 SIP portfolios, ledger entries, and liquid balances instantly.")
@@ -25,7 +33,6 @@ def process_and_categorize_statement(df):
     Dynamically maps columns, strips character noise, preserves negative mathematical signs 
     for debits, and enforces strict day-first Indian date parsing.
     """
-    # Dynamic Column Matcher
     date_keywords = ['date', 'txn date', 'transaction date', 'value date']
     desc_keywords = ['desc', 'narration', 'particular', 'transaction details', 'remarks', 'description']
     amt_keywords = ['amount', 'amt', 'volume', 'transaction amount', 'credit/debit', 'balance']
@@ -34,12 +41,11 @@ def process_and_categorize_statement(df):
     desc_col = [c for c in df.columns if any(k in c.lower() for k in desc_keywords)]
     amt_col = [c for c in df.columns if any(k in c.lower() for k in amt_keywords)]
 
-    # Fallback indexes if labels are completely generic
+    # Fallback indexes if labels are missing
     date_col = date_col[0] if date_col else df.columns[0]
     desc_col = desc_col[0] if desc_col else (df.columns[1] if len(df.columns) > 1 else df.columns[0])
     amt_col = amt_col[0] if amt_col else (df.columns[2] if len(df.columns) > 2 else df.columns[-1])
 
-    # Extract required series
     processed_df = df[[date_col, desc_col, amt_col]].copy()
     processed_df.columns = ['Date', 'Description', 'Amount']
 
@@ -61,191 +67,121 @@ def process_and_categorize_statement(df):
         lambda row: -row['Amount'] if row['Is_Debit'] else row['Amount'], axis=1
     )
 
-    # Clean intermediate tracking flags
     processed_df = processed_df.drop(columns=['Amount_Str', 'Amount_Clean', 'Is_Debit'])
 
     # Local Rule-Based Keyword Router
     def local_categorize(raw_desc):
         cleaned = str(raw_desc).upper()
-        # Instantly clear structural string noise from layout builders
-        cleaned = re.sub(r'(MISCELLANEOUS|OTHER EXPENSES)', '', cleaned)
-        # Normalize separators and unify the description for robust keyword matching
-        cleaned = re.sub(r'[^A-Z0-9 ]+', ' ', cleaned)
-        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        cleaned = re.sub(r'(MISCELLANEOUS|OTHER EXPENSES)', '', cleaned).strip()
         
-        if any(k in cleaned for k in ["ICCW FA", "FAILED TRANSACTION", "REFUND"]):
+        if any(k in cleaned for k in ["ICCW FA", "FAILED TRANCATION", "REFUND"]):
             return "ATM Reversals & Refunds"
         elif any(k in cleaned for k in ["ICCLDHR", "INDIAN CLEARING CORP", "MONEY LIC", "MONEYLICIOUS", "RAISE SECURITIES", "DS AXISCN"]):
             return "Investments & Trading"
-        elif any(k in cleaned for k in ["JIO MOBIL", "JIO PREP", "AMAZON", "SMS CHARGES", "NEXTGENFASTFAS", "PAYTM JIOMOBIL", "FLIPKART"]):
+        elif any(k in cleaned for k in ["JIO MOBIL", "JIO PREP", "AMAZON", "SMS CHARGES", "NEXTGENFASTFAS"]):
             return "Bills & Utilities"
         elif any(k in cleaned for k in ["BY CASH", "CARDLESS DEPOSIT", "CASH DEPOSITS", "DEPOSIT"]):
             return "Cash Deposits"
         elif "ICCW" in cleaned:
             return "ATM Cash Withdrawals"
-        elif any(k in cleaned for k in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K", "ASMIT KU", "SUMAN KR", "MR RAMES", "RUDRA PR", "RANJIT K"]):
+        elif any(k in cleaned for k in ["SANJAY K", "NARESH M", "BELA KUM", "BABLU KU", "MIHIR K", "GOURI PR", "RAKESH K", "ASMIT KU"]):
             return "Peer Transfers"
-        elif "INT PD" in cleaned or "INT CARD" in cleaned:
+        elif "INT.PD" in cleaned or "INT CARD" in cleaned:
             return "Bank Interest Income"
-        if any(k in cleaned for k in ["BMTC BUS", "UBER", "OLA", "RAPIDO", "METRO", "TRAIN"]):
-            return "Transport & Commute"
-        return "Other Spending"
+        
+        return "Other Expenses"
 
     processed_df['Category'] = processed_df['Description'].apply(local_categorize)
     total_net_volume = processed_df['Amount'].sum()
     
     return processed_df, total_net_volume
 
-def build_financial_plan(monthly_income, savings_target, debt_payment=0.0):
-    """Create a simple monthly financial plan from income, savings, and debt inputs."""
-    monthly_income = float(monthly_income or 0.0)
-    savings_target = float(savings_target or 0.0)
-    debt_payment = float(debt_payment or 0.0)
-
-    remaining_after_fixed = max(monthly_income - savings_target - debt_payment, 0.0)
-    essentials = remaining_after_fixed * 0.55
-    discretionary = remaining_after_fixed * 0.20
-    emergency = remaining_after_fixed * 0.15
-    buffer = max(remaining_after_fixed - essentials - discretionary - emergency, 0.0)
-
-    plan_rows = [
-        ("Savings & Investments", savings_target, "Build long-term wealth and secure future goals"),
-        ("Debt Repayment", debt_payment, "Reduce liabilities and lower interest burden"),
-        ("Essential Expenses", essentials, "Rent, groceries, bills, and transport"),
-        ("Discretionary Spending", discretionary, "Dining, entertainment, shopping, and hobbies"),
-        ("Emergency Buffer", emergency, "Unexpected expenses and medical needs"),
-        ("Buffer / Miscellaneous", buffer, "Flexible cushion for irregular spending"),
-    ]
-
-    plan_df = pd.DataFrame(plan_rows, columns=["Category", "Planned Amount", "Advice"])
-    plan_df["Planned Amount"] = plan_df["Planned Amount"].round(2)
-
-    if monthly_income > 0:
-        plan_df["Share of Income (%)"] = (plan_df["Planned Amount"] / monthly_income * 100).round(1)
-    else:
-        plan_df["Share of Income (%)"] = 0.0
-
-    return plan_df
-
 # 3. STREAMLIT FILE UPLOADER & INTERFACE
-st.subheader("🧾 Financial Planning Assistant")
-with st.form("financial_plan_form"):
-    col_plan1, col_plan2, col_plan3 = st.columns(3)
-    with col_plan1:
-        monthly_income = st.number_input("Monthly income (₹)", min_value=0.0, step=1000.0, value=50000.0)
-    with col_plan2:
-        savings_target = st.number_input("Savings target (₹)", min_value=0.0, step=1000.0, value=10000.0)
-    with col_plan3:
-        debt_payment = st.number_input("Debt repayment (₹)", min_value=0.0, step=500.0, value=0.0)
-
-    submitted = st.form_submit_button("Generate Financial Plan")
-
-if submitted:
-    plan_df = build_financial_plan(monthly_income, savings_target, debt_payment)
-    st.dataframe(plan_df, width='stretch')
-    st.bar_chart(plan_df, x="Category", y="Planned Amount", width='stretch')
-
 uploaded_file = st.file_uploader("Upload your transaction CSV/Excel Statement data", type=["csv", "xlsx"])
 
 if uploaded_file is not None:
-    # Read layout formats safely
-    if uploaded_file.name.endswith('.csv'):
-        raw_df = pd.read_csv(uploaded_file)
-    else:
-        raw_df = pd.read_excel(uploaded_file)
+    try:
+        if uploaded_file.name.lower().endswith('.csv'):
+            bytes_data = uploaded_file.read()
+            
+            try:
+                decoded_text = bytes_data.decode('utf-8')
+            except UnicodeDecodeError:
+                decoded_text = bytes_data.decode('latin-1', errors='replace')
 
-    # Run processing engine
+            cleaned_text = decoded_text.replace('\xa0', ' ').replace('\r\n', '\n')
+            
+            try:
+                raw_df = pd.read_csv(
+                    io.StringIO(cleaned_text), 
+                    engine='python', 
+                    on_bad_lines='skip',
+                    skipinitialspace=True
+                )
+            except Exception:
+                lines = cleaned_text.split('\n')
+                header_idx = 0
+                for idx, line in enumerate(lines[:20]):
+                    if any(k in line.lower() for k in ['date', 'particulars', 'narration', 'amount', 'description', 'txn']):
+                        header_idx = idx
+                        break
+                
+                raw_df = pd.read_csv(
+                    io.StringIO('\n'.join(lines[header_idx:])), 
+                    engine='python', 
+                    on_bad_lines='skip',
+                    skipinitialspace=True
+                )
+        else:
+            raw_df = pd.read_excel(uploaded_file)
+
+    except Exception as parse_err:
+        st.error(f"⚠️ Unable to parse statement layout: {parse_err}. Please ensure it is a valid CSV or XLSX file.")
+        st.stop()
+
+    # Process and sanitize data
     clean_df, continuous_calculated_total = process_and_categorize_statement(raw_df)
 
-    # Split dashboard calculations accurately
+    # Split calculations
     total_income = clean_df[clean_df['Amount'] > 0]['Amount'].sum()
-    total_expenses = clean_df[clean_df['Amount'] < 0]['Amount'].sum()
-
-    # ==========================================
-    # 4. REFACTORED KPI CALCULATIONS (SPLITTING OUT SIPs)
-    # ==========================================
-    # 1. Total Inflows (Interest, Deposits, etc.)
-    total_income = clean_df[clean_df['Amount'] > 0]['Amount'].sum()
-    
-    # 2. Wealth Accumulation (Only Investments & SIPs)
-    # Detect SIPs inside investment descriptions (common keywords) and split them out
-    sip_keywords = ['SIP', 'AUTO DEBIT', 'SYSTEMATIC', 'SIP-']
-    def is_sip(row):
-        desc = str(row['Description']).upper()
-        cat = row['Category']
-        if cat == 'Investments & Trading' and any(k in desc for k in sip_keywords):
-            return True
-        return False
-
-    clean_df['Is_SIP'] = clean_df.apply(is_sip, axis=1)
-
-    total_sips = clean_df[clean_df['Is_SIP']]['Amount'].sum()
-    total_invested = clean_df[(clean_df['Category'] == 'Investments & Trading') & (~clean_df['Is_SIP'])]['Amount'].sum()
-    
-    # 3. True Operational Expenses (Everything else that is negative)
+    total_invested = clean_df[clean_df['Category'] == 'Investments & Trading']['Amount'].sum()
     total_expenses = clean_df[
         (clean_df['Amount'] < 0) & 
         (clean_df['Category'] != 'Investments & Trading')
     ]['Amount'].sum()
-    
-    # 4. Ultimate Liquid Variance (-6,172.64)
     net_variance = clean_df['Amount'].sum()
 
-    # --- UI Layout Render ---
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("📥 Total Income Tracked", f"₹{total_income:,.2f}")
-    col2.metric("💸 Core Expenses (Outlays)", f"₹{abs(total_expenses):,.2f}")
-    col3.metric("📈 Asset Building (SIPs)", f"₹{abs(total_sips):,.2f}")
-    col4.metric("💼 Other Investments", f"₹{abs(total_invested):,.2f}")
-
-    # Secondary KPIs row
-    net_col1, net_col2, net_col3, net_col4 = st.columns(4)
-    net_col1.metric("⚖️ Net Cashflow Change", f"₹{net_variance:,.2f}", delta=f"₹{net_variance:,.2f}")
-    net_col2.metric("📈 Total Invested (All)", f"₹{abs(total_sips + total_invested):,.2f}")
+    # 4. KPI VALUE LAYOUT DISPLAY
+    st.success(f"Successfully optimized and indexed {len(clean_df)} financial transaction rows!")
     
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("📥 Total Income", f"₹{total_income:,.2f}")
+    col2.metric("💸 Operational Expenses", f"₹{abs(total_expenses):,.2f}")
+    col3.metric("📈 Investments (SIPs)", f"₹{abs(total_invested):,.2f}")
+    col4.metric("⚖️ Net Cashflow Change", f"₹{net_variance:,.2f}")
+
     # 5. DATA EXPLORER GRAPHICS
-    st.subheader("📊 Expense Distribution by Volume")
+    st.subheader("📊 Expense & Asset Distribution")
     chart_data = clean_df.groupby('Category')['Amount'].sum().reset_index()
-    # Force visualization numbers positive for rendering clean bars
     chart_data['Absolute Volume'] = chart_data['Amount'].abs()
-    st.bar_chart(data=chart_data, x='Category', y='Absolute Volume', width='stretch')
+    st.bar_chart(data=chart_data, x='Category', y='Absolute Volume', use_container_width=True)
 
     st.subheader("🔍 Interactive Data Explorer")
-    st.dataframe(clean_df, width='stretch')
+    st.dataframe(clean_df, use_container_width=True)
 
-    # 6. GENERATE SCRIPT SUMMARY PACK FOR THE LLM PROMPT
+    # 6. AI ANALYSIS & FINANCIAL PLANNER TABS
     summary_metrics = clean_df.groupby('Category')['Amount'].agg(['count', 'sum']).to_string()
 
-    # Integrated System Prompt Template
     ai_prompt = f"""
-    You are an expert Indian personal finance portfolio manager and accounting auditor reviewing a user's bank statement metrics.
-    Analyze the data and structure your response EXACTLY into the specified headings. Do not modify layout tags.
+    You are an expert Indian personal finance portfolio manager and accounting auditor.
+    Analyze the following statement metrics and provide strategic insight.
 
-    CRITICAL SYSTEM LAWS:
-    1. CURRENCY: Prefix every single monetary balance with the Indian Rupee symbol (₹). Never use dollars ($).
-    2. THE INVESTMENT LAW: Outflows under 'Investments & Trading' (negative sum balances) indicate wealth asset formation like Mutual Fund SIPs via ICCL AND RAISE SECURITIES. Do not describe this as a loss—praise it as disciplined capital compounding.
-    3. MATHEMATICAL ACCURACY: The precise absolute net change calculated by the ledger engine is strictly ₹{continuous_calculated_total:,.2f}. Frame all text paragraphs completely around this reality.
+    CRITICAL LAWS:
+    1. CURRENCY: Prefix every single monetary balance with the Indian Rupee symbol (₹).
+    2. THE INVESTMENT LAW: Treat 'Investments & Trading' outlays as asset creation, not consumer losses.
+    3. ACCURACY: The precise net cashflow change is ₹{continuous_calculated_total:,.2f}.
 
-    ---
-    EXPECTED FORMAT STRUCTURE:
-    
-    ### 📊 Portfolio Data Summary
-    (Provide a clean markdown table breaking down category distributions)
-
-    ### 🧠  AI finance Analytics Report
-    > **Executive Financial Health Note:** (Summary of balance changes)
-
-    #### 1. Strategic Investment & Capital Formation
-    (Analysis of SIP wealth creation and broker account transactions)
-
-    #### 2. Cash Flow & Liquidity Management
-    (Analysis of ATM, cash entries, and bills stability)
-
-    ### 📈 Actionable Portfolio Recommendations
-    - (2-3 targeted portfolio health bullets)
-    ---
-
-    Metrics Dataset to Analyze:
+    Summary Metrics:
     {summary_metrics}
     """
 
@@ -263,11 +199,4 @@ if uploaded_file is not None:
                 )
                 st.markdown(response.choices[0].message.content)
             except Exception as e:
-                error_code = getattr(e, "code", None)
-                if error_code == "insufficient_quota" or "insufficient_quota" in str(e):
-                    st.error(
-                        "OpenAI API quota exceeded. Check the API project's billing and usage limits, "
-                        "then retry with a funded API key."
-                    )
-                else:
-                    st.error(f"AI Diagnostics Connection Error: {e}")
+                st.error(f"AI Diagnostics Connection Error: {e}")
