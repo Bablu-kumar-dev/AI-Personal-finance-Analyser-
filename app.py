@@ -97,7 +97,7 @@ def process_and_categorize_statement(df):
     
     return processed_df, total_net_volume
 
-def create__budget(monthly_income):
+def create_monthly_budget(monthly_income):
     monthly_income = float(monthly_income or 0.0)
     budget = pd.DataFrame({
         'Budget Area': ['Needs', 'Wants', 'Savings & Debt Repayment'],
