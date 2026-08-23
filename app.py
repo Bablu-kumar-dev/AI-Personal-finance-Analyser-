@@ -2,6 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
+from dotenv import load_dotenv
+
+load_dotenv()
+
 try:
     import openai
     OPENAI_AVAILABLE = True
@@ -40,7 +44,9 @@ def process_and_categorize_statement(df):
     processed_df.columns = ['Date', 'Description', 'Amount']
 
     # Strict Day-First Indian Date Conversion (DD-MM-YYYY)
-    processed_df['Date'] = pd.to_datetime(processed_df['Date'], dayfirst=True, errors='coerce')
+    processed_df['Date'] = pd.to_datetime(
+        processed_df['Date'], format='mixed', dayfirst=True, errors='coerce'
+    )
     
     # Capture Debit vs Credit indicators before removing symbols
     processed_df['Amount_Str'] = processed_df['Amount'].astype(str)
@@ -257,4 +263,11 @@ if uploaded_file is not None:
                 )
                 st.markdown(response.choices[0].message.content)
             except Exception as e:
-                st.error(f"AI Diagnostics Connection Error: {e}")
+                error_code = getattr(e, "code", None)
+                if error_code == "insufficient_quota" or "insufficient_quota" in str(e):
+                    st.error(
+                        "OpenAI API quota exceeded. Check the API project's billing and usage limits, "
+                        "then retry with a funded API key."
+                    )
+                else:
+                    st.error(f"AI Diagnostics Connection Error: {e}")
